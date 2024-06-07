@@ -1,7 +1,5 @@
 # Excessive-Trade-Cancelling
 
-This solution uses csv-parser (https://github.com/mafintosh/csv-parser)
-
 ## Tests
 
 Run `npm install` to install all dependencies and then run `npm run test` to run the unit tests. These should all pass if your solution has been implemented correctly.
