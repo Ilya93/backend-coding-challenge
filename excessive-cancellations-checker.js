@@ -26,14 +26,16 @@ export class ExcessiveCancellationsChecker {
   }
 
   /**
-   * Analyze trades from the file
+   * Reads and analyzes trade data from the provided file.
+   *
+   * This method populates the `#allCompanies` and `#excessiveCompanies` sets based on the analysis.
    */
   async #analyzeTrades() {
     const companyTrades = new Map();
     const fileStream = fs.createReadStream(this.filePath);
     const rl = readline.createInterface({ input: fileStream });
 
-    // Process csv lines
+    // Iterate over each line in the CSV file
     for await (const line of rl) {
       const trade = this.#parseTradeData(line);
       if (!trade) continue;
@@ -46,14 +48,17 @@ export class ExcessiveCancellationsChecker {
       companyTrades.set(company, trades);
     }
 
-    // Check company trades
+    // Analyze trades for each company
     for (const [company, trades] of companyTrades) {
       this.#checkExcessiveCancellations(trades, company);
     }
   }
 
   /**
-   * Parse trade data from the line
+   * Parses a single line of trade data from the CSV file.
+   *
+   * @param {string} line - A single line from the CSV file.
+   * @returns {object|null} An object containing parsed trade data, or null if parsing fails.
    */
   #parseTradeData(line) {
     try {
@@ -65,6 +70,7 @@ export class ExcessiveCancellationsChecker {
       const orderType = parts[2].trim();
       const quantity = Number(parts[3].trim());
 
+      // Validate parsed data
       if (
         isNaN(time) ||
         !company ||
@@ -81,7 +87,10 @@ export class ExcessiveCancellationsChecker {
   }
 
   /**
-   * Check if cancellations are excessive within the 60 sec period
+   * Checks for excessive order cancellations within a sliding window of 60 seconds.
+   *
+   * @param {object[]} trades - An array of trade objects for a specific company.
+   * @param {string} company - The name of the company being analyzed.
    */
   #checkExcessiveCancellations(trades, company) {
     const timePeriod = 60000; // 60 seconds in milliseconds
@@ -91,12 +100,12 @@ export class ExcessiveCancellationsChecker {
       let totalOrders = 0;
       let totalCancels = 0;
 
-      // Move the start index to keep the trades within the time period
+      // Move the start index to keep the window within the 60-second time period
       while (trades[end].time - trades[start].time > timePeriod) {
         start++;
       }
 
-      // Move the end index to keep the trades within the time period
+      // Expand the window to include all trades within the 60-second period
       while (
         trades[end + 1] &&
         trades[end + 1].time - trades[start].time <= timePeriod
@@ -104,7 +113,7 @@ export class ExcessiveCancellationsChecker {
         end++;
       }
 
-      // Process the trades within the time period
+      // Analyze trades within the current window
       const tradesWindow = trades.slice(start, end + 1);
       for (let i = 0; i < tradesWindow.length; i++) {
         const trade = tradesWindow[i];
@@ -115,7 +124,7 @@ export class ExcessiveCancellationsChecker {
         }
       }
 
-      // Check for excessive cancellations condition
+      // Check for excessive cancellation condition
       if (totalCancels / Math.max(totalOrders, 1) > 1 / 3) {
         this.#excessiveCompanies.add(company);
         return;
